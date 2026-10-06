@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,6 +15,11 @@ import {
 } from './invitation.dto';
 import { Event } from '../event/event.entity';
 import { S3Service } from '../upload/s3.service';
+import {
+  InvitationGateway,
+  StatsChangeAction,
+  StatsChangeSource,
+} from './invitation.gateway';
 
 export interface PaginatedInvitations {
   data: Invitation[];
@@ -26,6 +32,7 @@ export interface PaginatedInvitations {
 export interface InvitationCountByEvent {
   eventId: number;
   eventName: string;
+  categoryId: number;
   total: number;
   active: number;
   inactive: number;
@@ -38,12 +45,15 @@ export interface InvitationStatsByEvent {
 
 @Injectable()
 export class InvitationService {
+  private readonly logger = new Logger(InvitationService.name);
+
   constructor(
     @InjectRepository(Invitation)
     private readonly invitationRepository: Repository<Invitation>,
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
     private readonly s3Service: S3Service,
+    private readonly invitationGateway: InvitationGateway,
   ) {}
 
   private async ensureEventExists(eventId: number): Promise<void> {
@@ -71,6 +81,8 @@ export class InvitationService {
       imageUrl,
       active: dto.active ?? true,
     });
+
+    this.notifyStatsChanged('invitation', 'created', invitation.id);
 
     return this.findOne(invitation.id);
   }
@@ -108,6 +120,7 @@ export class InvitationService {
       .leftJoin(Invitation, 'invitation', 'invitation.eventId = event.id')
       .select('event.id', 'eventId')
       .addSelect('event.name', 'eventName')
+      .addSelect('event.categoryId', 'categoryId')
       .addSelect('COUNT(invitation.id)', 'total')
       .addSelect(
         'SUM(CASE WHEN invitation.active = 1 THEN 1 ELSE 0 END)',
@@ -115,6 +128,7 @@ export class InvitationService {
       )
       .groupBy('event.id')
       .addGroupBy('event.name')
+      .addGroupBy('event.categoryId')
       .orderBy('total', 'DESC')
       .addOrderBy('event.id', 'ASC');
 
@@ -127,6 +141,7 @@ export class InvitationService {
     const rows = await qb.getRawMany<{
       eventId: number | string;
       eventName: string;
+      categoryId: number | string;
       total: number | string;
       active: number | string | null;
     }>();
@@ -138,6 +153,7 @@ export class InvitationService {
       return {
         eventId: Number(row.eventId),
         eventName: row.eventName,
+        categoryId: Number(row.categoryId),
         total,
         active,
         inactive: total - active,
@@ -191,6 +207,11 @@ export class InvitationService {
       await this.invitationRepository.update(id, changes);
     }
 
+    // Chỉ đổi tên/ảnh thì số liệu chart không đổi, không cần bắn socket.
+    if (changes.eventId !== undefined || changes.active !== undefined) {
+      this.notifyStatsChanged('invitation', 'updated', id);
+    }
+
     return this.findOne(id);
   }
 
@@ -198,5 +219,23 @@ export class InvitationService {
     const invitation = await this.findOne(id);
     await this.s3Service.deleteFile(invitation.imageUrl);
     await this.invitationRepository.delete(id);
+    this.notifyStatsChanged('invitation', 'deleted', id);
+  }
+
+  // Tính lại thống kê (không lọc category) và đẩy cho mọi client đang kết nối.
+  // Chạy nền, lỗi chỉ log lại để không làm hỏng request REST đã ghi DB thành công.
+  // Public vì EventService cũng gọi khi event đổi (thêm/xóa cột, đổi tên, đổi category).
+  notifyStatsChanged(
+    source: StatsChangeSource,
+    action: StatsChangeAction,
+    id: number,
+  ): void {
+    this.countByEvent({})
+      .then((stats) =>
+        this.invitationGateway.emitStats({ source, action, id, stats }),
+      )
+      .catch((error: unknown) =>
+        this.logger.error('Failed to emit invitation stats', error),
+      );
   }
 }

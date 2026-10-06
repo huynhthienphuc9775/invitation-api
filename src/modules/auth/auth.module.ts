@@ -17,5 +17,7 @@ import { JwtStrategy } from './jwt.strategy';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
+  // Export để WebSocket gateway verify token bằng cùng secret.
+  exports: [JwtModule],
 })
 export class AuthModule {}

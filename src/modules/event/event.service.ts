@@ -11,6 +11,7 @@ import { CreateEventDto, QueryEventDto, UpdateEventDto } from './event.dto';
 import { Category } from '../category/category.entity';
 import { Invitation } from '../invitation/invitation.entity';
 import { S3Service } from '../upload/s3.service';
+import { InvitationService } from '../invitation/invitation.service';
 
 export interface PaginatedEvents {
   data: Event[];
@@ -30,6 +31,7 @@ export class EventService {
     @InjectRepository(Invitation)
     private readonly invitationRepository: Repository<Invitation>,
     private readonly s3Service: S3Service,
+    private readonly invitationService: InvitationService,
   ) {}
 
   private async ensureCategoryExists(categoryId: number): Promise<void> {
@@ -56,6 +58,9 @@ export class EventService {
       imageUrl,
       categoryId: dto.categoryId,
     });
+
+    // Event mới là một cột mới (giá trị 0) trên chart invitation.
+    this.invitationService.notifyStatsChanged('event', 'created', event.id);
 
     return this.findOne(event.id);
   }
@@ -119,6 +124,11 @@ export class EventService {
       await this.eventRepository.update(id, changes);
     }
 
+    // Chart hiển thị tên và categoryId của event; chỉ đổi ảnh thì không cần bắn.
+    if (changes.name !== undefined || changes.categoryId !== undefined) {
+      this.invitationService.notifyStatsChanged('event', 'updated', id);
+    }
+
     return this.findOne(id);
   }
 
@@ -137,5 +147,6 @@ export class EventService {
 
     await this.s3Service.deleteFile(event.imageUrl);
     await this.eventRepository.delete(id);
+    this.invitationService.notifyStatsChanged('event', 'deleted', id);
   }
 }

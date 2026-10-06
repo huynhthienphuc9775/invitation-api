@@ -52,6 +52,14 @@ JWT bearer via Passport. `JwtAuthGuard` is applied **per route** with `@UseGuard
 
 Note that `User` entities are returned from controllers with the `password` field intact.
 
+### Realtime chart stats (Socket.IO)
+
+`GET /invitations/stats/by-event` returns invitation counts per event (`total` / `active` / `inactive`, plus `eventName` and `categoryId`) for a column chart. It starts from `events` with a LEFT JOIN, so events with no invitations appear as 0; mysql2 returns COUNT/SUM as strings, so `countByEvent` casts them with `Number()`.
+
+`InvitationGateway` (default namespace, CORS from `FRONTEND_URL`) pushes the same data on the `invitation:stats-by-event` event as `{ source: 'invitation' | 'event', action: 'created' | 'updated' | 'deleted', id, stats }`. `stats` is always unfiltered; the FE filters by `categoryId` itself. Auth is a handshake middleware in `afterInit` that verifies the JWT from `auth.token` or the `Authorization` header using the `JwtService` exported by `AuthModule` — `JwtAuthGuard` does not apply to sockets.
+
+Any write that changes what the chart shows must call `InvitationService.notifyStatsChanged(source, action, id)` after the DB write succeeds. Today that is invitation create/delete and updates to `eventId`/`active`, and event create/delete and updates to `name`/`categoryId`; name- or image-only invitation edits and image-only event edits skip it. The call is fire-and-forget and only logs on failure, so it never fails the REST request. `EventModule` imports `InvitationModule` (which exports `InvitationService`) for this — keep that edge one-way to avoid a module cycle.
+
 ### Schema management
 
 `dataSourceOptions` in `src/data-source.ts` sets `synchronize: true`, so TypeORM reshapes tables to match entities on every boot. There are no migrations. Renaming an entity column reads as drop-plus-add and destroys that column's data — rename in the database first, or accept the loss. New entities must be added to the `entities` array there as well as to their module's `TypeOrmModule.forFeature`.
