@@ -14,9 +14,14 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { InvitationService, PaginatedInvitations } from './invitation.service';
+import {
+  InvitationService,
+  InvitationStatsByEvent,
+  PaginatedInvitations,
+} from './invitation.service';
 import {
   CreateInvitationDto,
+  InvitationStatsQueryDto,
   QueryInvitationDto,
   UpdateInvitationDto,
 } from './invitation.dto';
@@ -45,6 +50,17 @@ export class InvitationController {
     @Query() query: QueryInvitationDto,
   ): Promise<PaginatedInvitations> {
     return this.invitationService.findAll(query);
+  }
+
+  // Dữ liệu cho biểu đồ cột: số invitation theo từng event.
+  // Khai báo trước `:id` để không bị route động nuốt mất.
+  @UseGuards(JwtAuthGuard)
+  @Get('stats/by-event')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  getStatsByEvent(
+    @Query() query: InvitationStatsQueryDto,
+  ): Promise<InvitationStatsByEvent> {
+    return this.invitationService.countByEvent(query);
   }
 
   @UseGuards(JwtAuthGuard)

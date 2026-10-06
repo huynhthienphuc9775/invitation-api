@@ -75,3 +75,11 @@ export class QueryInvitationDto {
   @Min(1)
   limit: number = 10;
 }
+
+export class InvitationStatsQueryDto {
+  // Chỉ thống kê các event thuộc category này.
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  categoryId?: number;
+}

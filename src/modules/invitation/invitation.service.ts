@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { Invitation } from './invitation.entity';
 import {
   CreateInvitationDto,
+  InvitationStatsQueryDto,
   QueryInvitationDto,
   UpdateInvitationDto,
 } from './invitation.dto';
@@ -20,6 +21,19 @@ export interface PaginatedInvitations {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface InvitationCountByEvent {
+  eventId: number;
+  eventName: string;
+  total: number;
+  active: number;
+  inactive: number;
+}
+
+export interface InvitationStatsByEvent {
+  data: InvitationCountByEvent[];
+  total: number;
 }
 
 @Injectable()
@@ -82,6 +96,57 @@ export class InvitationService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async countByEvent(
+    query: InvitationStatsQueryDto,
+  ): Promise<InvitationStatsByEvent> {
+    // Đi từ bảng events + LEFT JOIN để event chưa có invitation nào vẫn hiện cột 0.
+    const qb = this.eventRepository
+      .createQueryBuilder('event')
+      .leftJoin(Invitation, 'invitation', 'invitation.eventId = event.id')
+      .select('event.id', 'eventId')
+      .addSelect('event.name', 'eventName')
+      .addSelect('COUNT(invitation.id)', 'total')
+      .addSelect(
+        'SUM(CASE WHEN invitation.active = 1 THEN 1 ELSE 0 END)',
+        'active',
+      )
+      .groupBy('event.id')
+      .addGroupBy('event.name')
+      .orderBy('total', 'DESC')
+      .addOrderBy('event.id', 'ASC');
+
+    if (query.categoryId) {
+      qb.where('event.categoryId = :categoryId', {
+        categoryId: query.categoryId,
+      });
+    }
+
+    const rows = await qb.getRawMany<{
+      eventId: number | string;
+      eventName: string;
+      total: number | string;
+      active: number | string | null;
+    }>();
+
+    // mysql2 trả COUNT/SUM dạng string (BIGINT/DECIMAL) nên phải ép về number.
+    const data = rows.map((row) => {
+      const total = Number(row.total);
+      const active = Number(row.active ?? 0);
+      return {
+        eventId: Number(row.eventId),
+        eventName: row.eventName,
+        total,
+        active,
+        inactive: total - active,
+      };
+    });
+
+    return {
+      data,
+      total: data.reduce((sum, item) => sum + item.total, 0),
     };
   }
 
