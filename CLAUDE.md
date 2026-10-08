@@ -54,7 +54,7 @@ Protect routes with `@Auth('admin')` / `@Auth('customer')` (`src/modules/auth/au
 
 **Admin (`User`, table `users`)** — `POST /auth/login` with email + password; passwords bcrypt-hashed in `UserService.create`. `User` entities are returned from controllers with the `password` field intact.
 
-**Customer (`Customer`, table `customers`, `src/modules/customer/`)** — self-registration restricted to `@gmail.com`, with an email OTP required once at sign-up:
+**Customer (`Customer`, table `customers`, `src/modules/customer/`)** — self-registration with any email address, with an email OTP required once at sign-up:
 
 1. `POST /customers/register { email, password }` creates the row with `emailVerified = false` and mails a 6-digit OTP. Re-registering an unverified email overwrites its password and re-sends; a verified email is 409.
 2. `POST /customers/verify-otp { email, otp, password }` activates the account and returns `{ access_token }`. The password is required so that someone who re-registered the same email in between (overwriting the password) cannot get an account activated with their password.

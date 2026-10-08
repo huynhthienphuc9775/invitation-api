@@ -13,7 +13,6 @@ const normalizeEmail = ({ value }: { value: unknown }): unknown =>
 export class RegisterCustomerDto {
   @Transform(normalizeEmail)
   @IsEmail()
-  @Matches(/@gmail\.com$/, { message: 'email must be a @gmail.com address' })
   email: string;
 
   // bcrypt chỉ dùng 72 byte đầu, nên giới hạn để tránh phần thừa bị bỏ qua âm thầm.
