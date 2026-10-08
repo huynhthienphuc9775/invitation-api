@@ -8,7 +8,6 @@ import {
   Post,
   Query,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
   UsePipes,
   ValidationPipe,
@@ -26,13 +25,13 @@ import {
   UpdateInvitationDto,
 } from './invitation.dto';
 import { Invitation } from './invitation.entity';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Auth } from '../auth/auth.decorator';
 
 @Controller('invitations')
 export class InvitationController {
   constructor(private readonly invitationService: InvitationService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Post()
   @UseInterceptors(FileInterceptor('image'))
   @UsePipes(new ValidationPipe({ transform: true }))
@@ -43,7 +42,7 @@ export class InvitationController {
     return this.invitationService.create(dto, image);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Get()
   @UsePipes(new ValidationPipe({ transform: true }))
   getAllInvitations(
@@ -54,7 +53,7 @@ export class InvitationController {
 
   // Dữ liệu cho biểu đồ cột: số invitation theo từng event.
   // Khai báo trước `:id` để không bị route động nuốt mất.
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Get('stats/by-event')
   @UsePipes(new ValidationPipe({ transform: true }))
   getStatsByEvent(
@@ -63,13 +62,13 @@ export class InvitationController {
     return this.invitationService.countByEvent(query);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Get(':id')
   getInvitation(@Param('id') id: number): Promise<Invitation> {
     return this.invitationService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Patch(':id')
   @UseInterceptors(FileInterceptor('image'))
   @UsePipes(new ValidationPipe({ transform: true }))
@@ -81,7 +80,7 @@ export class InvitationController {
     return this.invitationService.update(id, dto, image);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Delete(':id')
   deleteInvitation(@Param('id') id: number): Promise<void> {
     return this.invitationService.remove(id);

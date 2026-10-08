@@ -47,6 +47,10 @@ export class InvitationGateway implements OnGatewayInit {
       this.jwtService
         .verifyAsync<JwtPayload>(token)
         .then((payload) => {
+          // Chart thống kê chỉ dành cho admin; token customer bị từ chối.
+          if (payload.role !== 'admin') {
+            return next(new Error('Forbidden'));
+          }
           (socket.data as { user?: JwtPayload }).user = payload;
           next();
         })

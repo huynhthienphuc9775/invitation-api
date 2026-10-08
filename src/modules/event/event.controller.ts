@@ -8,7 +8,6 @@ import {
   Post,
   Query,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
   UsePipes,
   ValidationPipe,
@@ -17,13 +16,13 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { EventService, PaginatedEvents } from './event.service';
 import { CreateEventDto, QueryEventDto, UpdateEventDto } from './event.dto';
 import { Event } from './event.entity';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Auth } from '../auth/auth.decorator';
 
 @Controller('events')
 export class EventController {
   constructor(private readonly eventService: EventService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Post()
   @UseInterceptors(FileInterceptor('image'))
   @UsePipes(new ValidationPipe({ transform: true }))
@@ -34,20 +33,20 @@ export class EventController {
     return this.eventService.create(dto, image);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Get()
   @UsePipes(new ValidationPipe({ transform: true }))
   getAllEvents(@Query() query: QueryEventDto): Promise<PaginatedEvents> {
     return this.eventService.findAll(query);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Get(':id')
   getEvent(@Param('id') id: number): Promise<Event> {
     return this.eventService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Patch(':id')
   @UseInterceptors(FileInterceptor('image'))
   @UsePipes(new ValidationPipe({ transform: true }))
@@ -59,7 +58,7 @@ export class EventController {
     return this.eventService.update(id, dto, image);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Auth('admin')
   @Delete(':id')
   deleteEvent(@Param('id') id: number): Promise<void> {
     return this.eventService.remove(id);

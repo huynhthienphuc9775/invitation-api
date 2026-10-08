@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { InvitationModule } from './modules/invitation/invitation.module';
 import { CategoryModule } from './modules/category/category.module';
 import { EventModule } from './modules/event/event.module';
+import { CustomerModule } from './modules/customer/customer.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { dataSourceOptions } from './data-source';
 
@@ -16,6 +17,7 @@ import { dataSourceOptions } from './data-source';
     InvitationModule,
     CategoryModule,
     EventModule,
+    CustomerModule,
     TypeOrmModule.forRoot(dataSourceOptions),
   ],
   controllers: [AppController],
