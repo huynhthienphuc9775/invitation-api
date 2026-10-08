@@ -1,11 +1,21 @@
 import {
+  IsBoolean,
   IsEmail,
+  IsInt,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+
+const toBoolean = ({ value }: { value: unknown }): unknown => {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+};
 
 const normalizeEmail = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
@@ -48,4 +58,28 @@ export class LoginCustomerDto {
 
   @IsString()
   password: string;
+}
+
+export class QueryCustomerDto {
+  // Tìm gần đúng theo email.
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  emailVerified?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
 }

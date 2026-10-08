@@ -23,6 +23,7 @@ describe('CustomerService', () => {
     update: jest.Mock;
     increment: jest.Mock;
     findOneBy: jest.Mock;
+    findAndCount: jest.Mock;
   };
   let mail: { sendOtp: jest.Mock };
   let jwt: { signAsync: jest.Mock };
@@ -55,6 +56,7 @@ describe('CustomerService', () => {
       update: jest.fn(() => Promise.resolve()),
       increment: jest.fn(() => Promise.resolve()),
       findOneBy: jest.fn(),
+      findAndCount: jest.fn(() => Promise.resolve([[], 25])),
     };
     mail = { sendOtp: jest.fn(() => Promise.resolve()) };
     jwt = { signAsync: jest.fn(() => Promise.resolve('token')) };
@@ -189,6 +191,39 @@ describe('CustomerService', () => {
       await expect(service.login(dto)).rejects.toBeInstanceOf(
         ForbiddenException,
       );
+    });
+  });
+
+  describe('findAll', () => {
+    it('filters by email and verification status and paginates', async () => {
+      const result = await service.findAll({
+        search: 'gmail',
+        emailVerified: false,
+        page: 2,
+        limit: 10,
+      });
+
+      const options = callArg<{
+        where: Record<string, unknown>;
+        skip: number;
+        take: number;
+      }>(repo.findAndCount, 0, 0);
+      expect(options.where.emailVerified).toBe(false);
+      expect(options.where.email).toBeDefined();
+      expect(options.skip).toBe(10);
+      expect(result).toEqual({
+        data: [],
+        total: 25,
+        page: 2,
+        limit: 10,
+        totalPages: 3,
+      });
+    });
+
+    it('applies no filters when none are given', async () => {
+      await service.findAll({ page: 1, limit: 10 });
+      const options = callArg<{ where: object }>(repo.findAndCount, 0, 0);
+      expect(options.where).toEqual({});
     });
   });
 });

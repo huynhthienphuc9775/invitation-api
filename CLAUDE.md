@@ -58,7 +58,7 @@ Protect routes with `@Auth('admin')` / `@Auth('customer')` (`src/modules/auth/au
 
 1. `POST /customers/register { email, password }` creates the row with `emailVerified = false` and mails a 6-digit OTP. Re-registering an unverified email overwrites its password and re-sends; a verified email is 409.
 2. `POST /customers/verify-otp { email, otp, password }` activates the account and returns `{ access_token }`. The password is required so that someone who re-registered the same email in between (overwriting the password) cannot get an account activated with their password.
-3. `POST /customers/resend-otp { email }`; `POST /customers/login { email, password }` (403 until verified); `GET /customers/me`.
+3. `POST /customers/resend-otp { email }`; `POST /customers/login { email, password }` (403 until verified); `GET /customers/me` (customer token). Admin-only: `GET /customers` (paginated, `search` on email, `emailVerified` filter) and `GET /customers/:id` — `:id` is declared after `me` so it does not swallow `/customers/me`.
 
 OTP rules live as constants in `customer.service.ts`: 5-minute TTL, 5 wrong attempts then a new OTP is required, 60 s resend cooldown (429). Only the bcrypt hash of the OTP is stored. Password and OTP columns are `select: false`, so plain `find*` never returns them — load them with the query builder in `findByEmailWithSecrets`. Emails are normalized to trimmed lowercase in the DTOs.
 

@@ -12,12 +12,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { QueryFailedError, Repository } from 'typeorm';
+import { Like, QueryFailedError, Repository } from 'typeorm';
 import { randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { Customer } from './customer.entity';
 import {
   LoginCustomerDto,
+  QueryCustomerDto,
   RegisterCustomerDto,
   ResendOtpDto,
   VerifyOtpDto,
@@ -29,6 +30,14 @@ const SALT_ROUNDS = 10;
 export const OTP_TTL_MINUTES = 5;
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
+export interface PaginatedCustomers {
+  data: Customer[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 @Injectable()
 export class CustomerService {
@@ -154,6 +163,28 @@ export class CustomerService {
       throw new ForbiddenException('Email has not been verified');
     }
     return this.signToken(customer);
+  }
+
+  async findAll(query: QueryCustomerDto): Promise<PaginatedCustomers> {
+    const { search, emailVerified, page, limit } = query;
+
+    const [data, total] = await this.customerRepository.findAndCount({
+      where: {
+        ...(search && { email: Like(`%${search}%`) }),
+        ...(emailVerified !== undefined && { emailVerified }),
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { id: 'DESC' },
+    });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: number): Promise<Customer> {
