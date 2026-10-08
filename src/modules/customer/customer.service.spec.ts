@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   HttpException,
   HttpStatus,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -24,6 +25,7 @@ describe('CustomerService', () => {
     increment: jest.Mock;
     findOneBy: jest.Mock;
     findAndCount: jest.Mock;
+    delete: jest.Mock;
   };
   let mail: { sendOtp: jest.Mock };
   let jwt: { signAsync: jest.Mock };
@@ -57,6 +59,7 @@ describe('CustomerService', () => {
       increment: jest.fn(() => Promise.resolve()),
       findOneBy: jest.fn(),
       findAndCount: jest.fn(() => Promise.resolve([[], 25])),
+      delete: jest.fn(() => Promise.resolve()),
     };
     mail = { sendOtp: jest.fn(() => Promise.resolve()) };
     jwt = { signAsync: jest.fn(() => Promise.resolve('token')) };
@@ -224,6 +227,22 @@ describe('CustomerService', () => {
       await service.findAll({ page: 1, limit: 10 });
       const options = callArg<{ where: object }>(repo.findAndCount, 0, 0);
       expect(options.where).toEqual({});
+    });
+  });
+
+  describe('remove', () => {
+    it('deletes an existing customer', async () => {
+      repo.findOneBy.mockResolvedValue(await makeCustomer());
+      await service.remove(1);
+      expect(repo.delete).toHaveBeenCalledWith(1);
+    });
+
+    it('returns 404 for an unknown id without deleting', async () => {
+      repo.findOneBy.mockResolvedValue(null);
+      await expect(service.remove(999)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(repo.delete).not.toHaveBeenCalled();
     });
   });
 });

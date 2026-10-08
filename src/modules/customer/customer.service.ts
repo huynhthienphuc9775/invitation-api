@@ -195,6 +195,12 @@ export class CustomerService {
     return customer;
   }
 
+  // Xóa hẳn bản ghi; email được giải phóng nên có thể đăng ký lại từ đầu.
+  async remove(id: number): Promise<void> {
+    await this.findOne(id);
+    await this.customerRepository.delete(id);
+  }
+
   private findByEmailWithSecrets(email: string): Promise<Customer | null> {
     return this.customerRepository
       .createQueryBuilder('customer')

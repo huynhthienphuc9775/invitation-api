@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -22,7 +23,7 @@ import { Auth } from '../auth/auth.decorator';
 import { JwtPayload } from '../auth/jwt.strategy';
 
 // register / verify-otp / resend-otp / login là public; /me chỉ cho token customer;
-// danh sách và chi tiết customer chỉ cho admin.
+// danh sách, chi tiết và xóa customer chỉ cho admin.
 @Controller('customers')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
@@ -75,5 +76,11 @@ export class CustomerController {
   @Get(':id')
   getCustomer(@Param('id') id: number): Promise<Customer> {
     return this.customerService.findOne(id);
+  }
+
+  @Auth('admin')
+  @Delete(':id')
+  deleteCustomer(@Param('id') id: number): Promise<void> {
+    return this.customerService.remove(id);
   }
 }
